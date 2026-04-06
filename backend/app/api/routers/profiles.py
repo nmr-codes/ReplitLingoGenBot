@@ -14,7 +14,7 @@ from backend.app.services.profile_service import (
 router = APIRouter(prefix="/profiles", tags=["profiles"])
 
 
-@router.post("", response_model=ProfileRead)
+@router.post("", response_model=ProfileRead, status_code=201)
 async def create_user_profile(data: ProfileCreate, db: AsyncSession = Depends(get_db)):
     existing = await get_profile(db, data.telegram_id)
     if existing:

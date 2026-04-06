@@ -1,6 +1,5 @@
 import re
-import random
-import string
+import secrets
 from datetime import datetime, timezone
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -17,7 +16,7 @@ def _generate_slug(base: str) -> str:
     """Generate a URL-friendly slug from a base string."""
     slug = re.sub(r"[^a-z0-9_]", "", base.lower().replace(" ", "_"))
     slug = slug[:32] if slug else "user"
-    suffix = "".join(random.choices(string.digits, k=4))
+    suffix = secrets.token_hex(2)  # 4 hex chars, e.g. "a3f2"
     return f"{slug}_{suffix}"
 
 

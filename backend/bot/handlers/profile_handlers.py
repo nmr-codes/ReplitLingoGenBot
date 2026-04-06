@@ -56,7 +56,7 @@ async def _create_or_update_profile_api(telegram_id: int, payload: dict) -> dict
                 json={"telegram_id": telegram_id, **payload},
                 timeout=aiohttp.ClientTimeout(total=10),
             )
-            if create_resp.status == 200:
+            if create_resp.status in (200, 201):
                 return await create_resp.json()
             # Profile exists — update it
             update_resp = await client.put(

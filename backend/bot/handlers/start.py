@@ -70,11 +70,6 @@ async def cmd_start(message: Message) -> None:
 
 @router.message(F.text == "🪪 My Profile")
 async def btn_my_profile(message: Message) -> None:
-    # Delegate to the /profile command
-    from aiogram.filters import Command as _Command
-    from backend.bot.handlers.profile_handlers import cmd_profile as _cmd_profile
-    from aiogram.fsm.context import FSMContext as _FSMContext
-    # We can't easily inject FSMContext here, so just forward with a tip
     await message.answer(
         "Use /profile to view or create your profile.\n"
         "Use /profile_url to get your shareable link.",
@@ -84,7 +79,6 @@ async def btn_my_profile(message: Message) -> None:
 
 @router.message(F.text == "📬 Messages")
 async def btn_messages(message: Message) -> None:
-    # Delegate to the /messages command handler
     from backend.bot.handlers.message_handlers import cmd_messages as _cmd_messages
     await _cmd_messages(message)
 
