@@ -8,6 +8,7 @@ from aiogram.enums import ParseMode
 from backend.app.core.config import settings
 from backend.app.core.logging_config import setup_logging, get_logger
 from backend.bot.handlers import start, matchmaking, messaging, session
+from backend.bot.handlers import profile_handlers, message_handlers
 from backend.bot.monitoring import send_monitor_alert
 
 setup_logging()
@@ -28,6 +29,8 @@ async def main() -> None:
     dp.include_router(start.router)
     dp.include_router(matchmaking.router)
     dp.include_router(session.router)
+    dp.include_router(profile_handlers.router)
+    dp.include_router(message_handlers.router)
     dp.include_router(messaging.router)
 
     await send_monitor_alert(bot, "INFO", "LingoGenBot started and polling.")

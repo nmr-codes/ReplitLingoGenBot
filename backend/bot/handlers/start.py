@@ -13,6 +13,7 @@ MAIN_KEYBOARD = ReplyKeyboardMarkup(
     keyboard=[
         [KeyboardButton(text="🔍 Find Partner")],
         [KeyboardButton(text="❌ Stop Searching"), KeyboardButton(text="🚪 End Session")],
+        [KeyboardButton(text="🪪 My Profile"), KeyboardButton(text="📬 Messages")],
         [KeyboardButton(text="ℹ️ Help")],
     ],
     resize_keyboard=True,
@@ -25,7 +26,8 @@ WELCOME_TEXT = (
     "🗣 You'll be randomly matched with a partner\n"
     "🎯 Each session has a random conversation topic\n"
     "⏱ Sessions last 5 minutes\n"
-    "⭐️ Rate your partner at the end\n\n"
+    "⭐️ Rate your partner at the end\n"
+    "🪪 Create a profile & receive anonymous messages\n\n"
     "<b>Tap 🔍 Find Partner to begin!</b>"
 )
 
@@ -66,6 +68,27 @@ async def cmd_start(message: Message) -> None:
     logger.info(f"User {user.id} started the bot.")
 
 
+@router.message(F.text == "🪪 My Profile")
+async def btn_my_profile(message: Message) -> None:
+    # Delegate to the /profile command
+    from aiogram.filters import Command as _Command
+    from backend.bot.handlers.profile_handlers import cmd_profile as _cmd_profile
+    from aiogram.fsm.context import FSMContext as _FSMContext
+    # We can't easily inject FSMContext here, so just forward with a tip
+    await message.answer(
+        "Use /profile to view or create your profile.\n"
+        "Use /profile_url to get your shareable link.",
+        parse_mode="HTML",
+    )
+
+
+@router.message(F.text == "📬 Messages")
+async def btn_messages(message: Message) -> None:
+    # Delegate to the /messages command handler
+    from backend.bot.handlers.message_handlers import cmd_messages as _cmd_messages
+    await _cmd_messages(message)
+
+
 @router.message(Command("help"))
 @router.message(F.text == "ℹ️ Help")
 async def cmd_help(message: Message) -> None:
@@ -79,6 +102,10 @@ async def cmd_help(message: Message) -> None:
         "6️⃣ After the session, <b>rate your partner</b> (1–5 ⭐️)\n\n"
         "🔴 To stop searching: press <b>❌ Stop Searching</b>\n"
         "🚪 To end a session early: press <b>🚪 End Session</b>\n\n"
+        "<b>Profile & Anonymous Messages:</b>\n"
+        "🪪 /profile — Create or edit your profile\n"
+        "🔗 /profile_url — Get your shareable anonymous link\n"
+        "📬 /messages — View messages sent to you anonymously\n\n"
         "Good luck and enjoy practicing! 🌍"
     )
     await message.answer(help_text, parse_mode="HTML")

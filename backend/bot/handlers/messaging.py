@@ -13,8 +13,14 @@ CONTROL_TEXTS = {
     "❌ Stop Searching",
     "🚪 End Session",
     "ℹ️ Help",
+    "🪪 My Profile",
+    "📬 Messages",
     "/start",
     "/help",
+    "/profile",
+    "/profile_url",
+    "/messages",
+    "/skip",
 }
 
 

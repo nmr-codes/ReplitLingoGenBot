@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Send Anonymous Message to {{ display_name }}</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+    .card {
+      background: #fff;
+      border-radius: 16px;
+      padding: 2.5rem 2rem;
+      max-width: 480px;
+      width: 100%;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+    }
+    .avatar {
+      width: 72px; height: 72px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 2rem;
+      margin: 0 auto 1.2rem;
+    }
+    h1 { text-align: center; font-size: 1.4rem; color: #1a1a2e; margin-bottom: 0.4rem; }
+    .subtitle { text-align: center; color: #666; font-size: 0.9rem; margin-bottom: 0.5rem; }
+    .badge {
+      display: inline-block;
+      background: #f0f0ff;
+      color: #667eea;
+      border-radius: 20px;
+      padding: 0.2rem 0.8rem;
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-align: center;
+      width: 100%;
+      margin-bottom: 1.5rem;
+    }
+    .bio {
+      background: #f9f9fb;
+      border-radius: 8px;
+      padding: 0.8rem 1rem;
+      font-size: 0.9rem;
+      color: #555;
+      margin-bottom: 1.5rem;
+      line-height: 1.5;
+    }
+    label { display: block; font-weight: 600; color: #333; margin-bottom: 0.5rem; font-size: 0.95rem; }
+    textarea {
+      width: 100%;
+      border: 2px solid #e8e8f0;
+      border-radius: 10px;
+      padding: 0.9rem 1rem;
+      font-size: 0.95rem;
+      resize: vertical;
+      min-height: 120px;
+      font-family: inherit;
+      transition: border-color 0.2s;
+      outline: none;
+    }
+    textarea:focus { border-color: #667eea; }
+    .char-count { text-align: right; font-size: 0.8rem; color: #999; margin-top: 0.3rem; margin-bottom: 1rem; }
+    .char-count.warn { color: #e67e22; }
+    button {
+      width: 100%;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      padding: 0.9rem;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.1s;
+    }
+    button:hover { opacity: 0.9; }
+    button:active { transform: scale(0.98); }
+    button:disabled { opacity: 0.6; cursor: not-allowed; }
+    .success-box {
+      display: none;
+      background: #e8f5e9;
+      border: 2px solid #4caf50;
+      border-radius: 10px;
+      padding: 1rem;
+      text-align: center;
+      color: #2e7d32;
+      font-weight: 600;
+      margin-top: 1rem;
+    }
+    .error-box {
+      display: none;
+      background: #fdecea;
+      border: 2px solid #f44336;
+      border-radius: 10px;
+      padding: 1rem;
+      text-align: center;
+      color: #c62828;
+      margin-top: 1rem;
+    }
+    .footer { text-align: center; margin-top: 1.5rem; font-size: 0.8rem; color: #aaa; }
+    .footer a { color: #667eea; text-decoration: none; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="avatar">👤</div>
+    <h1>{{ display_name }}</h1>
+    {% if language_level %}
+    <div class="badge">{{ language_level | capitalize }}</div>
+    {% endif %}
+    {% if bio %}
+    <div class="bio">{{ bio }}</div>
+    {% endif %}
+    <p class="subtitle">Send an anonymous message — your identity stays hidden 🕵️</p>
+    <br />
+    <form id="msgForm">
+      <label for="content">Your Message</label>
+      <textarea
+        id="content"
+        name="content"
+        placeholder="Write something nice... ✨"
+        maxlength="500"
+        required
+      ></textarea>
+      <div class="char-count" id="charCount">0 / 500</div>
+      <button type="submit" id="sendBtn">Send Anonymously 📨</button>
+    </form>
+    <div class="success-box" id="successBox">
+      ✅ Message sent! {{ display_name }} will see it soon.
+    </div>
+    <div class="error-box" id="errorBox"></div>
+    <div class="footer">
+      Powered by <a href="https://t.me/LingoGenBot" target="_blank">LingoGenBot</a> · 100% Anonymous
+    </div>
+  </div>
+
+  <script>
+    const textarea = document.getElementById('content');
+    const charCount = document.getElementById('charCount');
+    const form = document.getElementById('msgForm');
+    const sendBtn = document.getElementById('sendBtn');
+    const successBox = document.getElementById('successBox');
+    const errorBox = document.getElementById('errorBox');
+    const slug = '{{ profile_slug }}';
+
+    textarea.addEventListener('input', () => {
+      const len = textarea.value.length;
+      charCount.textContent = len + ' / 500';
+      charCount.className = 'char-count' + (len > 450 ? ' warn' : '');
+    });
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const content = textarea.value.trim();
+      if (!content) return;
+
+      sendBtn.disabled = true;
+      sendBtn.textContent = 'Sending...';
+      errorBox.style.display = 'none';
+
+      try {
+        const res = await fetch('/api/v1/messages/' + slug, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ content }),
+        });
+
+        if (res.ok) {
+          form.style.display = 'none';
+          successBox.style.display = 'block';
+        } else if (res.status === 429) {
+          errorBox.textContent = '⚠️ Too many messages. Please wait a bit before sending again.';
+          errorBox.style.display = 'block';
+          sendBtn.disabled = false;
+          sendBtn.textContent = 'Send Anonymously 📨';
+        } else {
+          const data = await res.json();
+          errorBox.textContent = '❌ ' + (data.detail || 'Something went wrong. Try again.');
+          errorBox.style.display = 'block';
+          sendBtn.disabled = false;
+          sendBtn.textContent = 'Send Anonymously 📨';
+        }
+      } catch (err) {
+        errorBox.textContent = '❌ Network error. Please try again.';
+        errorBox.style.display = 'block';
+        sendBtn.disabled = false;
+        sendBtn.textContent = 'Send Anonymously 📨';
+      }
+    });
+  </script>
+</body>
+</html>
