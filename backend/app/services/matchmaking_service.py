@@ -134,7 +134,7 @@ async def end_session(db: AsyncSession, session_uuid: str, status: SessionStatus
 
         # Update statistics and XP for both participants
         duration = session.duration_seconds or 0
-        for uid in [uid for uid in [user1_id, user2_id] if uid]:
+        for uid in filter(None, [user1_id, user2_id]):
             try:
                 from backend.app.services.statistics_service import record_conversation_completed
                 from backend.app.services.profile_service import add_xp, update_streak

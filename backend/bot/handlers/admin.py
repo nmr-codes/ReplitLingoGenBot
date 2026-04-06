@@ -161,7 +161,8 @@ async def cmd_admin_audit(message: Message) -> None:
         action = log.get("action", "")
         target = log.get("target_id", "")
         admin = log.get("admin_telegram_id", "")
-        created = log.get("created_at", "")[:10]  # date only
+        created_raw = log.get("created_at", "")
+        created = str(created_raw)[:10] if created_raw else "unknown"
         lines.append(f"🔹 <b>{action}</b> → {target} by {admin} ({created})")
 
     await message.answer("\n".join(lines), parse_mode="HTML")

@@ -132,14 +132,11 @@ async def check_anon_rate_limit(sender_id: int, recipient_id: int, max_per_hour:
     """Return True if the sender is within rate limits, False if blocked."""
     r = await get_redis()
     key = f"{ANON_RATE_PREFIX}{sender_id}:{recipient_id}"
-    count = await r.get(key)
-    if count and int(count) >= max_per_hour:
-        return False
-    pipe = r.pipeline()
-    await pipe.incr(key)
-    await pipe.expire(key, 3600)
-    await pipe.execute()
-    return True
+    count = await r.incr(key)
+    if count == 1:
+        # First message this hour: set expiry
+        await r.expire(key, 3600)
+    return count <= max_per_hour
 
 
 async def set_pending_anon_message(sender_id: int, profile_token: str) -> None:

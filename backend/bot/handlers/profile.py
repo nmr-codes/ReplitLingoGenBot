@@ -214,6 +214,9 @@ async def btn_profile(message: Message) -> None:
 @router.message(F.text == "📊 My Stats")
 async def btn_stats(message: Message) -> None:
     await cmd_stats(message)
+
+
+@router.message(Command("setbio"))
 async def cmd_setbio(message: Message) -> None:
     user = message.from_user
     if not user or not message.text:

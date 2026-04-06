@@ -1,3 +1,4 @@
+import html
 import aiohttp
 from aiogram import Router, F, Bot
 from aiogram.types import Message
@@ -116,7 +117,7 @@ async def relay_message(message: Message, bot: Bot) -> None:
                                 chat_id=recipient_id,
                                 text=(
                                     "📨 <b>You received an anonymous message!</b>\n\n"
-                                    f"<blockquote>{content}</blockquote>\n\n"
+                                    f"<blockquote>{html.escape(content)}</blockquote>\n\n"
                                     "Use /messages to view all your anonymous messages."
                                 ),
                                 parse_mode="HTML",

@@ -103,7 +103,7 @@ async def cmd_start(message: Message) -> None:
             "<i>You have 5 minutes to compose your message.</i>",
             parse_mode="HTML",
         )
-        logger.info(f"User {user.id} initiated anon message to token {token[:8]}...")
+        logger.info(f"User {user.id} initiated anon message to token {token[:4]}***")
         return
 
     # Normal /start flow

@@ -1,6 +1,8 @@
 from datetime import datetime
 from pydantic import BaseModel, field_validator
 
+VALID_LANGUAGE_LEVELS = {"A1", "A2", "B1", "B2", "C1", "C2"}
+
 
 class UserProfileCreate(BaseModel):
     telegram_id: int
@@ -15,9 +17,8 @@ class UserProfileCreate(BaseModel):
     @field_validator("language_level")
     @classmethod
     def validate_level(cls, v: str | None) -> str | None:
-        valid = {"A1", "A2", "B1", "B2", "C1", "C2"}
-        if v and v.upper() not in valid:
-            raise ValueError(f"language_level must be one of {valid}")
+        if v and v.upper() not in VALID_LANGUAGE_LEVELS:
+            raise ValueError(f"language_level must be one of {VALID_LANGUAGE_LEVELS}")
         return v.upper() if v else v
 
     @field_validator("availability")
@@ -43,9 +44,8 @@ class UserProfileUpdate(BaseModel):
     def validate_level(cls, v: str | None) -> str | None:
         if v is None:
             return v
-        valid = {"A1", "A2", "B1", "B2", "C1", "C2"}
-        if v.upper() not in valid:
-            raise ValueError(f"language_level must be one of {valid}")
+        if v.upper() not in VALID_LANGUAGE_LEVELS:
+            raise ValueError(f"language_level must be one of {VALID_LANGUAGE_LEVELS}")
         return v.upper()
 
     @field_validator("availability")
