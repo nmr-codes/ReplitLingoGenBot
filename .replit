@@ -1,0 +1,60 @@
+entrypoint = "main.py"
+modules = ["python-3.11"]
+
+[nix]
+channel = "stable-25_05"
+
+[unitTest]
+language = "python3"
+
+[gitHubImport]
+requiredFiles = [".replit", "replit.nix"]
+
+[deployment]
+run = ["python3", "main.py"]
+deploymentTarget = "cloudrun"
+
+[agent]
+expertMode = true
+
+[userenv]
+
+[userenv.shared]
+REDIS_URL = "fakeredis://"
+BACKEND_URL = "http://localhost:8000"
+API_HOST = "0.0.0.0"
+API_PORT = "5000"
+MATCH_TIMEOUT_SECONDS = "120"
+SESSION_DURATION_SECONDS = "300"
+SEARCH_UPDATE_INTERVAL = "15"
+DEBUG = "false"
+MONITOR_CHANNEL_ID = ""
+APP_DATABASE_URL = "sqlite+aiosqlite:///./lingogenbot.db"
+
+[workflows]
+runButton = "Project"
+
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "LingoGenBot API"
+
+[[workflows.workflow]]
+name = "LingoGenBot API"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python run_backend.py"
+waitForPort = 5000
+
+[workflows.workflow.metadata]
+outputType = "webview"
+
+[[ports]]
+localPort = 5000
+externalPort = 80
