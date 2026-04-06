@@ -19,7 +19,10 @@ logger = get_logger(__name__)
 async def lifespan(app: FastAPI):
     logger.info(f"Starting {settings.APP_NAME} v{settings.VERSION}")
     await init_db()
-    await get_redis()
+    try:
+        await get_redis()
+    except Exception as e:
+        logger.error(f"Redis connection failed at startup: {e}. Continuing — will retry on first use.")
     yield
     await close_redis()
     logger.info("Application shutdown complete.")

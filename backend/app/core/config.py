@@ -1,4 +1,5 @@
 import os
+import re
 from functools import lru_cache
 from pydantic_settings import BaseSettings
 
@@ -26,6 +27,27 @@ def _resolve_database_url() -> str:
     return "sqlite+aiosqlite:///./lingogenbot.db"
 
 
+def _resolve_redis_url() -> str:
+    raw = os.environ.get("REDIS_URL", "fakeredis://").strip()
+    if not raw:
+        return "fakeredis://"
+
+    # If the user pasted a redis-cli command, extract just the URL after -u flag
+    if "redis-cli" in raw or raw.startswith("-"):
+        match = re.search(r"redis[s]?://\S+", raw)
+        if match:
+            raw = match.group(0)
+        else:
+            return "fakeredis://"
+
+    # Upstash and other cloud Redis providers require TLS — upgrade redis:// → rediss://
+    known_tls_hosts = ("upstash.io", "redislabs.com", "render.com")
+    if raw.startswith("redis://") and any(h in raw for h in known_tls_hosts):
+        raw = "rediss://" + raw[len("redis://"):]
+
+    return raw
+
+
 def _resolve_backend_url() -> str:
     raw = os.environ.get("BACKEND_URL", "")
     if not raw:
@@ -44,9 +66,6 @@ class Settings(BaseSettings):
     API_HOST: str = "0.0.0.0"
     API_PORT: int = int(os.environ.get("PORT", os.environ.get("API_PORT", "8000")))
 
-    # Redis
-    REDIS_URL: str = "fakeredis://"
-
     # Matchmaking
     MATCH_TIMEOUT_SECONDS: int = 120
     SESSION_DURATION_SECONDS: int = 300
@@ -60,6 +79,10 @@ class Settings(BaseSettings):
     @property
     def DATABASE_URL(self) -> str:
         return _resolve_database_url()
+
+    @property
+    def REDIS_URL(self) -> str:
+        return _resolve_redis_url()
 
     @property
     def BACKEND_URL(self) -> str:
