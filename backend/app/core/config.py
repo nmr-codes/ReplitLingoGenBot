@@ -3,11 +3,36 @@ from functools import lru_cache
 from pydantic_settings import BaseSettings
 
 
-def _resolve_db_url() -> str:
+def _resolve_database_url() -> str:
+    on_render = bool(os.environ.get("RENDER"))
+
+    if on_render:
+        raw = os.environ.get("DATABASE_URL", "")
+        if raw.startswith("postgres://"):
+            return raw.replace("postgres://", "postgresql+asyncpg://", 1)
+        if raw.startswith("postgresql://") and "+asyncpg" not in raw:
+            return raw.replace("postgresql://", "postgresql+asyncpg://", 1)
+        if raw:
+            return raw
+
     app_url = os.environ.get("APP_DATABASE_URL", "")
     if app_url:
+        if app_url.startswith("postgres://"):
+            return app_url.replace("postgres://", "postgresql+asyncpg://", 1)
+        if app_url.startswith("postgresql://") and "+asyncpg" not in app_url:
+            return app_url.replace("postgresql://", "postgresql+asyncpg://", 1)
         return app_url
+
     return "sqlite+aiosqlite:///./lingogenbot.db"
+
+
+def _resolve_backend_url() -> str:
+    raw = os.environ.get("BACKEND_URL", "")
+    if not raw:
+        return "http://localhost:8000"
+    if raw.startswith(("http://", "https://")):
+        return raw.rstrip("/")
+    return f"https://{raw.rstrip('/')}"
 
 
 class Settings(BaseSettings):
@@ -15,13 +40,9 @@ class Settings(BaseSettings):
     BOT_TOKEN: str = ""
     MONITOR_CHANNEL_ID: str = ""
 
-    # Backend
-    BACKEND_URL: str = "http://localhost:8000"
+    # Backend — Render injects PORT automatically for web services
     API_HOST: str = "0.0.0.0"
-    API_PORT: int = 8000
-
-    # Database — read APP_DATABASE_URL; never collide with Replit's managed DATABASE_URL
-    APP_DATABASE_URL: str = "sqlite+aiosqlite:///./lingogenbot.db"
+    API_PORT: int = int(os.environ.get("PORT", os.environ.get("API_PORT", "8000")))
 
     # Redis
     REDIS_URL: str = "fakeredis://"
@@ -38,7 +59,11 @@ class Settings(BaseSettings):
 
     @property
     def DATABASE_URL(self) -> str:
-        return self.APP_DATABASE_URL
+        return _resolve_database_url()
+
+    @property
+    def BACKEND_URL(self) -> str:
+        return _resolve_backend_url()
 
     class Config:
         extra = "allow"

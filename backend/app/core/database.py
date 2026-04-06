@@ -15,11 +15,15 @@ def _get_engine():
     global _engine
     if _engine is None:
         from backend.app.core.config import settings
-        _engine = create_async_engine(
-            settings.DATABASE_URL,
-            echo=settings.DEBUG,
-            pool_pre_ping=True,
-        )
+        db_url = settings.DATABASE_URL
+        is_sqlite = db_url.startswith("sqlite")
+
+        kwargs: dict = {"echo": settings.DEBUG, "pool_pre_ping": True}
+        if not is_sqlite:
+            kwargs["pool_size"] = 5
+            kwargs["max_overflow"] = 5
+
+        _engine = create_async_engine(db_url, **kwargs)
     return _engine
 
 
