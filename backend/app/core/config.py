@@ -61,6 +61,17 @@ class Settings(BaseSettings):
     # Bot
     BOT_TOKEN: str = ""
     MONITOR_CHANNEL_ID: str = ""
+    BOT_USERNAME: str = "LingoGenBot"
+    ADMIN_TELEGRAM_IDS: str = ""  # comma-separated list of admin Telegram IDs
+
+    @property
+    def admin_ids(self) -> list[int]:
+        if not self.ADMIN_TELEGRAM_IDS:
+            return []
+        try:
+            return [int(x.strip()) for x in self.ADMIN_TELEGRAM_IDS.split(",") if x.strip()]
+        except ValueError:
+            return []
 
     # Backend — Render injects PORT automatically for web services
     API_HOST: str = "0.0.0.0"

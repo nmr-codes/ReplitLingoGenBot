@@ -131,6 +131,21 @@ async def end_session(db: AsyncSession, session_uuid: str, status: SessionStatus
             await clear_user_session(user1_id)
         if user2_id:
             await clear_user_session(user2_id)
+
+        # Update statistics and XP for both participants
+        duration = session.duration_seconds or 0
+        for uid in [uid for uid in [user1_id, user2_id] if uid]:
+            try:
+                from backend.app.services.statistics_service import record_conversation_completed
+                from backend.app.services.profile_service import add_xp, update_streak
+                from backend.app.services.achievement_service import check_and_award_achievements
+                await record_conversation_completed(db, uid, duration)
+                await add_xp(db, uid, 10)  # XP per completed conversation
+                await update_streak(db, uid)
+                await check_and_award_achievements(db, uid)
+            except Exception as e:
+                logger.error(f"Failed to update stats for user {uid} after session end: {e}")
+
     await clear_session_data(session_uuid)
 
     logger.info(f"Session {session_uuid} ended with status={status}")
