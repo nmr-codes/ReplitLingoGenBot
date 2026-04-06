@@ -20,7 +20,6 @@ expertMode = true
 [userenv]
 
 [userenv.shared]
-REDIS_URL = "fakeredis://"
 BACKEND_URL = "http://localhost:8000"
 API_HOST = "0.0.0.0"
 API_PORT = "5000"

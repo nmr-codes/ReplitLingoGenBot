@@ -19,12 +19,12 @@ async def get_redis():
         return _redis
 
     if settings.REDIS_URL.startswith("fakeredis"):
-        import fakeredis.aioredis as fakeredis_aio
+        from fakeredis import aioredis as fakeredis_aio
         _redis = fakeredis_aio.FakeRedis(decode_responses=True)
         logger.info("Using FakeRedis for local development.")
     else:
-        import aioredis
-        _redis = await aioredis.from_url(
+        from redis.asyncio import from_url
+        _redis = from_url(
             settings.REDIS_URL,
             encoding="utf-8",
             decode_responses=True,
