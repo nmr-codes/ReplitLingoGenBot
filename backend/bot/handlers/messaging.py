@@ -69,6 +69,28 @@ async def get_partner_id(session_uuid: str, telegram_id: int) -> int | None:
     return None
 
 
+async def _no_session_msg(message: Message) -> None:
+    await message.answer(
+        "💬 <b>You are not in a session.</b>\n"
+        "Press <b>🔍 Find Partner</b> to get matched!",
+        parse_mode="HTML",
+    )
+
+
+async def _partner_unreachable(message: Message) -> None:
+    await message.answer(
+        "⚠️ Could not reach your partner. The session may have ended.",
+        parse_mode="HTML",
+    )
+
+
+async def _relay_failed(message: Message) -> None:
+    await message.answer(
+        "⚠️ Message could not be delivered. Your partner may have left.",
+        parse_mode="HTML",
+    )
+
+
 @router.message(F.text & ~F.text.in_(CONTROL_TEXTS))
 async def relay_message(message: Message, bot: Bot) -> None:
     user = message.from_user
@@ -140,11 +162,7 @@ async def relay_message(message: Message, bot: Bot) -> None:
 
     session_info = await get_session_info(user.id)
     if not session_info:
-        await message.answer(
-            "💬 <b>You are not in a session.</b>\n"
-            "Press <b>🔍 Find Partner</b> to get matched!",
-            parse_mode="HTML",
-        )
+        await _no_session_msg(message)
         return
 
     session_uuid = session_info.get("session_uuid")
@@ -153,10 +171,7 @@ async def relay_message(message: Message, bot: Bot) -> None:
 
     partner_id = await get_partner_id(session_uuid, user.id)
     if not partner_id:
-        await message.answer(
-            "⚠️ Could not reach your partner. The session may have ended.",
-            parse_mode="HTML",
-        )
+        await _partner_unreachable(message)
         return
 
     try:
@@ -165,7 +180,140 @@ async def relay_message(message: Message, bot: Bot) -> None:
             text=f"👤 <b>Partner:</b> {message.text}",
             parse_mode="HTML",
         )
-        logger.debug(f"Relayed message from {user.id} to {partner_id}")
+        logger.debug(f"Relayed text from {user.id} to {partner_id}")
     except Exception as e:
-        logger.error(f"Failed to relay message from {user.id} to {partner_id}: {e}")
-        await message.answer("⚠️ Message could not be delivered. Your partner may have left.")
+        logger.error(f"Failed to relay text from {user.id} to {partner_id}: {e}")
+        await _relay_failed(message)
+
+
+@router.message(F.photo)
+async def relay_photo(message: Message, bot: Bot) -> None:
+    user = message.from_user
+    if not user or not message.photo:
+        return
+
+    session_info = await get_session_info(user.id)
+    if not session_info:
+        await _no_session_msg(message)
+        return
+
+    session_uuid = session_info.get("session_uuid")
+    if not session_uuid:
+        return
+
+    partner_id = await get_partner_id(session_uuid, user.id)
+    if not partner_id:
+        await _partner_unreachable(message)
+        return
+
+    try:
+        caption = f"👤 <b>Partner:</b> {message.caption}" if message.caption else "👤 <b>Partner sent a photo</b>"
+        await bot.send_photo(
+            chat_id=partner_id,
+            photo=message.photo[-1].file_id,
+            caption=caption,
+            parse_mode="HTML",
+        )
+        logger.debug(f"Relayed photo from {user.id} to {partner_id}")
+    except Exception as e:
+        logger.error(f"Failed to relay photo from {user.id} to {partner_id}: {e}")
+        await _relay_failed(message)
+
+
+@router.message(F.video)
+async def relay_video(message: Message, bot: Bot) -> None:
+    user = message.from_user
+    if not user or not message.video:
+        return
+
+    session_info = await get_session_info(user.id)
+    if not session_info:
+        await _no_session_msg(message)
+        return
+
+    session_uuid = session_info.get("session_uuid")
+    if not session_uuid:
+        return
+
+    partner_id = await get_partner_id(session_uuid, user.id)
+    if not partner_id:
+        await _partner_unreachable(message)
+        return
+
+    try:
+        caption = f"👤 <b>Partner:</b> {message.caption}" if message.caption else "👤 <b>Partner sent a video</b>"
+        await bot.send_video(
+            chat_id=partner_id,
+            video=message.video.file_id,
+            caption=caption,
+            parse_mode="HTML",
+        )
+        logger.debug(f"Relayed video from {user.id} to {partner_id}")
+    except Exception as e:
+        logger.error(f"Failed to relay video from {user.id} to {partner_id}: {e}")
+        await _relay_failed(message)
+
+
+@router.message(F.video_note)
+async def relay_video_note(message: Message, bot: Bot) -> None:
+    """Relay Telegram round videos (video notes)."""
+    user = message.from_user
+    if not user or not message.video_note:
+        return
+
+    session_info = await get_session_info(user.id)
+    if not session_info:
+        await _no_session_msg(message)
+        return
+
+    session_uuid = session_info.get("session_uuid")
+    if not session_uuid:
+        return
+
+    partner_id = await get_partner_id(session_uuid, user.id)
+    if not partner_id:
+        await _partner_unreachable(message)
+        return
+
+    try:
+        await bot.send_video_note(
+            chat_id=partner_id,
+            video_note=message.video_note.file_id,
+        )
+        logger.debug(f"Relayed video note from {user.id} to {partner_id}")
+    except Exception as e:
+        logger.error(f"Failed to relay video note from {user.id} to {partner_id}: {e}")
+        await _relay_failed(message)
+
+
+@router.message(F.voice)
+async def relay_voice(message: Message, bot: Bot) -> None:
+    user = message.from_user
+    if not user or not message.voice:
+        return
+
+    session_info = await get_session_info(user.id)
+    if not session_info:
+        await _no_session_msg(message)
+        return
+
+    session_uuid = session_info.get("session_uuid")
+    if not session_uuid:
+        return
+
+    partner_id = await get_partner_id(session_uuid, user.id)
+    if not partner_id:
+        await _partner_unreachable(message)
+        return
+
+    try:
+        await bot.send_voice(
+            chat_id=partner_id,
+            voice=message.voice.file_id,
+            caption="👤 <b>Partner sent a voice message</b>",
+            parse_mode="HTML",
+        )
+        logger.debug(f"Relayed voice from {user.id} to {partner_id}")
+    except Exception as e:
+        logger.error(f"Failed to relay voice from {user.id} to {partner_id}: {e}")
+        await _relay_failed(message)

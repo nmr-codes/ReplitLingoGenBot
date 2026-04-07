@@ -295,19 +295,22 @@ async def cmd_stats(message: Message) -> None:
     if not user:
         return
     data = await _api_get(f"/api/v1/profiles/{user.id}/stats")
-    if not data:
-        await message.answer(
-            "📊 <b>No statistics yet!</b>\n\nComplete your first conversation to start tracking stats.",
-            parse_mode="HTML",
-        )
-        return
 
-    total_conv = data.get("total_conversations", 0)
-    completed = data.get("conversations_completed", 0)
-    msgs_sent = data.get("total_messages_sent", 0)
-    avg_recv = data.get("avg_rating_received", 0.0)
-    avg_given = data.get("avg_rating_given", 0.0)
-    total_dur = data.get("total_session_duration_seconds", 0)
+    total_conv = 0
+    completed = 0
+    msgs_sent = 0
+    avg_recv = 0.0
+    avg_given = 0.0
+    total_dur = 0
+
+    if data:
+        total_conv = data.get("total_conversations", 0)
+        completed = data.get("conversations_completed", 0)
+        msgs_sent = data.get("total_messages_sent", 0)
+        avg_recv = data.get("avg_rating_received", 0.0)
+        avg_given = data.get("avg_rating_given", 0.0)
+        total_dur = data.get("total_session_duration_seconds", 0)
+
     hours = total_dur // 3600
     minutes = (total_dur % 3600) // 60
 

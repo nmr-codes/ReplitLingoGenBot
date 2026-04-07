@@ -281,7 +281,43 @@ async def cmd_help(message: Message) -> None:
         "/setbio — Set your bio\n"
         "/setnative — Set native language\n"
         "/settarget — Set target language\n"
-        "/setgoals — Set learning goals\n\n"
+        "/setgoals — Set learning goals\n"
+        "/setlang — Change bot language (EN/UZ/RU)\n\n"
         "Good luck and enjoy practicing! 🌍"
     )
     await message.answer(help_text, parse_mode="HTML")
+
+
+# ---------------------------------------------------------------------------
+# /setlang — language selection
+# ---------------------------------------------------------------------------
+
+@router.message(Command("setlang"))
+async def cmd_setlang(message: Message) -> None:
+    from backend.bot.locales import get_user_lang, t
+    user = message.from_user
+    if not user:
+        return
+    lang = await get_user_lang(user.id)
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text=t("lang_en_btn", lang), callback_data="setlang_en"),
+                InlineKeyboardButton(text=t("lang_uz_btn", lang), callback_data="setlang_uz"),
+                InlineKeyboardButton(text=t("lang_ru_btn", lang), callback_data="setlang_ru"),
+            ]
+        ]
+    )
+    await message.answer(t("choose_language", lang), parse_mode="HTML", reply_markup=keyboard)
+
+
+@router.callback_query(F.data.startswith("setlang_"))
+async def cb_setlang(callback: CallbackQuery) -> None:
+    from backend.bot.locales import set_user_lang, t
+    user = callback.from_user
+    if not user:
+        return
+    lang = callback.data.replace("setlang_", "")
+    await set_user_lang(user.id, lang)
+    await callback.answer(t("language_set", lang), show_alert=True)
+    await callback.message.delete()

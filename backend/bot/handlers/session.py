@@ -8,17 +8,20 @@ from backend.app.core.logging_config import get_logger
 logger = get_logger(__name__)
 router = Router()
 
-RATING_KEYBOARD = InlineKeyboardMarkup(
-    inline_keyboard=[
-        [
-            InlineKeyboardButton(text="⭐ 1", callback_data="rate_1"),
-            InlineKeyboardButton(text="⭐ 2", callback_data="rate_2"),
-            InlineKeyboardButton(text="⭐ 3", callback_data="rate_3"),
-            InlineKeyboardButton(text="⭐ 4", callback_data="rate_4"),
-            InlineKeyboardButton(text="⭐ 5", callback_data="rate_5"),
+
+def _rating_keyboard(session_uuid: str) -> InlineKeyboardMarkup:
+    """Build rating keyboard with session_uuid embedded in callback data."""
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text="⭐ 1", callback_data=f"rate_{session_uuid}_1"),
+                InlineKeyboardButton(text="⭐ 2", callback_data=f"rate_{session_uuid}_2"),
+                InlineKeyboardButton(text="⭐ 3", callback_data=f"rate_{session_uuid}_3"),
+                InlineKeyboardButton(text="⭐ 4", callback_data=f"rate_{session_uuid}_4"),
+                InlineKeyboardButton(text="⭐ 5", callback_data=f"rate_{session_uuid}_5"),
+            ]
         ]
-    ]
-)
+    )
 
 
 async def get_session_info_api(telegram_id: int) -> dict | None:
@@ -110,7 +113,7 @@ async def end_session(message: Message, bot: Bot) -> None:
         "🏁 <b>Session ended!</b>\n\n"
         "How was your partner? Please rate the session:",
         parse_mode="HTML",
-        reply_markup=RATING_KEYBOARD,
+        reply_markup=_rating_keyboard(session_uuid),
     )
 
     if partner_id:
@@ -122,7 +125,7 @@ async def end_session(message: Message, bot: Bot) -> None:
                     "How was your experience? Please rate the session:"
                 ),
                 parse_mode="HTML",
-                reply_markup=RATING_KEYBOARD,
+                reply_markup=_rating_keyboard(session_uuid),
             )
         except Exception as e:
             logger.error(f"Failed to notify partner {partner_id} of session end: {e}")
@@ -135,10 +138,18 @@ async def handle_rating(callback: CallbackQuery) -> None:
     if not callback.message or not callback.from_user:
         return
 
-    score_str = callback.data.replace("rate_", "")
+    # callback_data format: "rate_{session_uuid}_{score}"
+    parts = callback.data.split("_")
+    if len(parts) < 3:
+        await callback.answer("⚠️ Invalid rating data.", show_alert=True)
+        return
+
+    # score is last element, session_uuid is everything between first and last underscore
     try:
-        score = int(score_str)
-    except ValueError:
+        score = int(parts[-1])
+        session_uuid = "_".join(parts[1:-1])
+    except (ValueError, IndexError):
+        await callback.answer("⚠️ Invalid rating data.", show_alert=True)
         return
 
     stars = "⭐" * score
@@ -149,5 +160,10 @@ async def handle_rating(callback: CallbackQuery) -> None:
         parse_mode="HTML",
     )
 
-    logger.info(f"User {callback.from_user.id} submitted rating {score} (session stored in callback state)")
+    ok = await submit_rating_api(session_uuid, callback.from_user.id, score)
+    if ok:
+        logger.info(f"User {callback.from_user.id} rated session {session_uuid}: {score}/5")
+    else:
+        logger.warning(f"Rating submission failed for user {callback.from_user.id}, session {session_uuid}")
+
     await callback.answer("Rating submitted! Thank you.")
