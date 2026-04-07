@@ -9,7 +9,17 @@ from backend.app.core.config import settings
 from backend.app.core.logging_config import setup_logging, get_logger
 from backend.app.core.database import init_db
 from backend.app.core.redis_client import get_redis, close_redis
-from backend.app.api.routers import users, matchmaking, sessions, profiles, anonymous_messages, admin, leaderboard
+from backend.app.api.routers import (
+    users,
+    matchmaking,
+    sessions,
+    profiles,
+    anonymous_messages,
+    admin,
+    leaderboard,
+)
+
+from backend.bot.bot import main
 
 setup_logging()
 logger = get_logger(__name__)
@@ -57,12 +67,14 @@ app.include_router(anonymous_messages.router, prefix="/api/v1")
 app.include_router(admin.router, prefix="/api/v1")
 app.include_router(leaderboard.router, prefix="/api/v1")
 
+@app.on_event("startup")
+async def startup():
+    asyncio.create_task(main())
 
 @app.get("/health")
 async def health_check():
     return {"status": "ok", "app": settings.APP_NAME, "version": settings.VERSION}
-
-
+    
 @app.get("/")
 async def root():
     return {
