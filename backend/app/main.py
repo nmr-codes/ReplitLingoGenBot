@@ -9,7 +9,16 @@ from backend.app.core.config import settings
 from backend.app.core.logging_config import setup_logging, get_logger
 from backend.app.core.database import init_db
 from backend.app.core.redis_client import get_redis, close_redis
-from backend.app.api.routers import users, matchmaking, sessions, profiles, anonymous_messages, admin, leaderboard
+from backend.app.api.routers import (
+    users,
+    matchmaking,
+    sessions,
+    profiles,
+    anonymous_messages,
+    admin,
+    leaderboard,
+)
+
 from backend.bot.bot import main
 
 setup_logging()
