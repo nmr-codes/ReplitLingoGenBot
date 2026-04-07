@@ -12,7 +12,7 @@ async def list_active_channels(db: AsyncSession) -> list[RequiredChannelRead]:
     """Return all currently-active required channels."""
     result = await db.execute(
         select(RequiredChannel)
-        .where(RequiredChannel.is_active == True)  # noqa: E712
+        .where(RequiredChannel.is_active)
         .order_by(RequiredChannel.id)
     )
     channels = result.scalars().all()

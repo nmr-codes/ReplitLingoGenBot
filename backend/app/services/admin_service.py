@@ -176,6 +176,6 @@ async def get_audit_log(
 async def get_all_user_ids(db: AsyncSession) -> list[int]:
     """Return telegram_id for every active user — used for broadcasting."""
     result = await db.execute(
-        select(User.telegram_id).where(User.is_active == True)  # noqa: E712
+        select(User.telegram_id).where(User.is_active)
     )
     return list(result.scalars().all())

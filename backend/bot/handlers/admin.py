@@ -427,7 +427,7 @@ async def cmd_broadcast(message: Message, bot: Bot) -> None:
             sent += 1
         except Exception:
             failed += 1
-        # Respect Telegram's rate limit (~30 messages/second to different users)
+        # Respect Telegram's rate limit (~20 messages/second to different users)
         await asyncio.sleep(0.05)
 
     try:
