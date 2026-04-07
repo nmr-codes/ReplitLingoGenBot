@@ -8,9 +8,13 @@ from backend.app.schemas.admin import (
     AdminDashboardStats, AdminActionRequest, AdminUserDetail,
     ModerationFlagRead, AdminLogRead
 )
+from backend.app.schemas.channel import RequiredChannelCreate, RequiredChannelRead
 from backend.app.services.admin_service import (
     get_dashboard_stats, list_users, perform_admin_action,
-    get_pending_flags, resolve_flag, get_audit_log
+    get_pending_flags, resolve_flag, get_audit_log, get_all_user_ids
+)
+from backend.app.services.channel_service import (
+    list_all_channels, add_channel, remove_channel
 )
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -91,3 +95,54 @@ async def admin_audit_log(
     db: AsyncSession = Depends(get_db),
 ):
     return await get_audit_log(db, limit=limit)
+
+
+# ---------------------------------------------------------------------------
+# Required-channel management
+# ---------------------------------------------------------------------------
+
+@router.get("/channels", response_model=list[RequiredChannelRead])
+async def admin_list_channels(
+    admin_id: int = Depends(_require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """List all required channels (including inactive ones)."""
+    return await list_all_channels(db)
+
+
+@router.post("/channels", response_model=RequiredChannelRead, status_code=201)
+async def admin_add_channel(
+    data: RequiredChannelCreate,
+    admin_id: int = Depends(_require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Add (or reactivate) a required Telegram channel."""
+    return await add_channel(db, data)
+
+
+@router.delete("/channels/{channel_db_id}")
+async def admin_remove_channel(
+    channel_db_id: int,
+    admin_id: int = Depends(_require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Soft-delete a required channel (sets is_active=False)."""
+    ok = await remove_channel(db, channel_db_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Channel not found")
+    return {"status": "ok", "removed_id": channel_db_id}
+
+
+# ---------------------------------------------------------------------------
+# Broadcast support — returns all active user IDs so the bot can send them
+# ---------------------------------------------------------------------------
+
+@router.get("/broadcast/users")
+async def broadcast_user_ids(
+    admin_id: int = Depends(_require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return all active user telegram_ids for bot-side broadcasting."""
+    ids = await get_all_user_ids(db)
+    return {"user_ids": ids, "count": len(ids)}
+

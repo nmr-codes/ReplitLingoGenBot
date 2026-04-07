@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 
-from backend.app.models.admin import AnonymousMessage
+from backend.app.models.anonymous_message import AnonymousMessage
 from backend.app.models.profile import UserProfile
 from backend.app.schemas.message import AnonMessageCreate, AnonMessageReply
 from backend.app.core.logging_config import get_logger

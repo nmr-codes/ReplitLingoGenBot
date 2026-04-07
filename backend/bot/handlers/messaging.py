@@ -32,6 +32,11 @@ CONTROL_TEXTS = {
     "/admin_stats",
     "/admin_users",
     "/admin_flags",
+    "/admin_audit",
+    "/admin_channels",
+    "/admin_add_channel",
+    "/admin_remove_channel",
+    "/broadcast",
 }
 
 

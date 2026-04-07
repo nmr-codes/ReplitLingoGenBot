@@ -8,6 +8,11 @@ from aiogram.types import Message
 from backend.app.core.config import settings
 from backend.app.core.logging_config import get_logger
 from backend.bot.monitoring import send_monitor_alert
+from backend.bot.handlers.start import (
+    fetch_required_channels,
+    find_unjoined_channels,
+    build_join_keyboard,
+)
 
 logger = get_logger(__name__)
 router = Router()
@@ -137,6 +142,21 @@ async def find_partner(message: Message, bot: Bot) -> None:
     user = message.from_user
     if not user:
         return
+
+    # ── Channel membership gate ────────────────────────────────────────────
+    required = await fetch_required_channels()
+    if required:
+        unjoined = await find_unjoined_channels(bot, user.id, required)
+        if unjoined:
+            names = "\n".join(f"• <b>{ch.get('title', 'Unknown')}</b>" for ch in unjoined)
+            await message.answer(
+                "📢 <b>You must join the required channels to use this bot.</b>\n\n"
+                f"{names}\n\n"
+                "After joining, tap <b>✅ I've Joined All Channels</b> below.",
+                parse_mode="HTML",
+                reply_markup=build_join_keyboard(unjoined),
+            )
+            return
 
     existing = await check_active_session_api(user.id)
     if existing:

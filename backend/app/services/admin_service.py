@@ -171,3 +171,11 @@ async def get_audit_log(
     )
     logs = result.scalars().all()
     return [AdminLogRead.model_validate(lg) for lg in logs]
+
+
+async def get_all_user_ids(db: AsyncSession) -> list[int]:
+    """Return telegram_id for every active user — used for broadcasting."""
+    result = await db.execute(
+        select(User.telegram_id).where(User.is_active == True)  # noqa: E712
+    )
+    return list(result.scalars().all())

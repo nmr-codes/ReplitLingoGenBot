@@ -1,7 +1,15 @@
 import aiohttp
-from aiogram import Router, F
+from aiogram import Router, F, Bot
 from aiogram.filters import CommandStart, Command
-from aiogram.types import Message, ReplyKeyboardMarkup, KeyboardButton
+from aiogram.types import (
+    Message,
+    ReplyKeyboardMarkup,
+    KeyboardButton,
+    InlineKeyboardMarkup,
+    InlineKeyboardButton,
+    CallbackQuery,
+)
+from aiogram.exceptions import TelegramForbiddenError, TelegramBadRequest
 
 from backend.app.core.config import settings
 from backend.app.core.logging_config import get_logger
@@ -32,6 +40,10 @@ WELCOME_TEXT = (
     "<b>Tap 🔍 Find Partner to begin!</b>"
 )
 
+
+# ---------------------------------------------------------------------------
+# API helpers
+# ---------------------------------------------------------------------------
 
 async def register_user_api(telegram_id: int, username: str | None, first_name: str | None) -> bool:
     try:
@@ -66,13 +78,76 @@ async def _get_public_profile(token: str) -> dict | None:
         return None
 
 
+async def fetch_required_channels() -> list[dict]:
+    """Fetch the list of required channels from the backend."""
+    try:
+        async with aiohttp.ClientSession() as client:
+            resp = await client.get(
+                f"{settings.BACKEND_URL}/api/v1/channels",
+                timeout=aiohttp.ClientTimeout(total=5),
+            )
+            if resp.status == 200:
+                return await resp.json()
+            return []
+    except Exception as e:
+        logger.error(f"Failed to fetch required channels: {e}")
+        return []
+
+
+async def find_unjoined_channels(bot: Bot, user_id: int, channels: list[dict]) -> list[dict]:
+    """Return the subset of channels the user has NOT joined."""
+    unjoined: list[dict] = []
+    for ch in channels:
+        ch_id = ch.get("channel_id")
+        if not ch_id:
+            continue
+        try:
+            member = await bot.get_chat_member(ch_id, user_id)
+            if member.status in ("left", "kicked", "banned"):
+                unjoined.append(ch)
+        except (TelegramForbiddenError, TelegramBadRequest):
+            # Bot not in channel or channel doesn't exist — skip the check
+            logger.warning(f"Cannot check membership for channel {ch_id}; skipping.")
+        except Exception as e:
+            logger.warning(f"Membership check error for channel {ch_id}: {e}")
+            unjoined.append(ch)  # Fail-closed: treat as not joined
+    return unjoined
+
+
+def build_join_keyboard(channels: list[dict]) -> InlineKeyboardMarkup:
+    """Build an inline keyboard with a 'Join' button for each un-joined channel."""
+    buttons: list[list[InlineKeyboardButton]] = []
+    for ch in channels:
+        username = ch.get("channel_username", "").lstrip("@")
+        invite = ch.get("invite_link")
+        title = ch.get("title", "Channel")
+
+        if invite:
+            url = invite
+        elif username:
+            url = f"https://t.me/{username}"
+        else:
+            continue  # Cannot build a URL — skip
+
+        buttons.append([InlineKeyboardButton(text=f"📢 Join {title}", url=url)])
+
+    buttons.append(
+        [InlineKeyboardButton(text="✅ I've Joined All Channels", callback_data="check_channels")]
+    )
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+
+# ---------------------------------------------------------------------------
+# /start handler
+# ---------------------------------------------------------------------------
+
 @router.message(CommandStart())
-async def cmd_start(message: Message) -> None:
+async def cmd_start(message: Message, bot: Bot) -> None:
     user = message.from_user
     if not user:
         return
 
-    # Check for deep link args (e.g., /start anon_TOKEN)
+    # ── Deep-link: /start anon_TOKEN ──────────────────────────────────────
     text = message.text or ""
     parts = text.split(maxsplit=1)
     deep_link_arg = parts[1].strip() if len(parts) > 1 else ""
@@ -87,10 +162,7 @@ async def cmd_start(message: Message) -> None:
             )
             return
 
-        # Register the sender (so they exist in the system)
         await register_user_api(user.id, user.username, user.first_name)
-
-        # Store pending anon message state
         await set_pending_anon_message(user.id, token)
 
         bio = profile.get("bio") or "No bio available"
@@ -106,7 +178,25 @@ async def cmd_start(message: Message) -> None:
         logger.info(f"User {user.id} initiated anon message to token {token[:4]}***")
         return
 
-    # Normal /start flow
+    # ── Required-channel membership gate ──────────────────────────────────
+    required = await fetch_required_channels()
+    if required:
+        unjoined = await find_unjoined_channels(bot, user.id, required)
+        if unjoined:
+            names = "\n".join(
+                f"• <b>{ch.get('title', 'Unknown')}</b>" for ch in unjoined
+            )
+            await message.answer(
+                "📢 <b>Join required channels to use this bot</b>\n\n"
+                f"Please join the following channel(s) first:\n{names}\n\n"
+                "After joining, tap <b>✅ I've Joined All Channels</b> below.",
+                parse_mode="HTML",
+                reply_markup=build_join_keyboard(unjoined),
+            )
+            logger.info(f"User {user.id} blocked — not in {len(unjoined)} required channel(s).")
+            return
+
+    # ── Normal registration & welcome ──────────────────────────────────────
     ok = await register_user_api(
         telegram_id=user.id,
         username=user.username,
@@ -118,6 +208,56 @@ async def cmd_start(message: Message) -> None:
     await message.answer(WELCOME_TEXT, parse_mode="HTML", reply_markup=MAIN_KEYBOARD)
     logger.info(f"User {user.id} started the bot.")
 
+
+# ---------------------------------------------------------------------------
+# Callback: "I've Joined All Channels"
+# ---------------------------------------------------------------------------
+
+@router.callback_query(F.data == "check_channels")
+async def check_channels_callback(callback: CallbackQuery, bot: Bot) -> None:
+    user = callback.from_user
+    if not user or not callback.message:
+        return
+
+    await callback.answer("🔍 Checking membership…")
+
+    required = await fetch_required_channels()
+    unjoined = await find_unjoined_channels(bot, user.id, required)
+
+    if unjoined:
+        names = "\n".join(f"• <b>{ch.get('title', 'Unknown')}</b>" for ch in unjoined)
+        try:
+            await callback.message.edit_text(
+                "❌ <b>You still haven't joined:</b>\n\n"
+                f"{names}\n\n"
+                "Please join all channels and tap the button again.",
+                parse_mode="HTML",
+                reply_markup=build_join_keyboard(unjoined),
+            )
+        except TelegramBadRequest:
+            pass  # Message unchanged — ignore
+        return
+
+    # All channels joined — register and welcome
+    ok = await register_user_api(user.id, user.username, user.first_name)
+    if not ok:
+        logger.warning(f"Failed to register user {user.id} after channel verification")
+
+    try:
+        await callback.message.edit_text(
+            "✅ <b>Verified! Welcome to LingoGenBot.</b>",
+            parse_mode="HTML",
+        )
+    except TelegramBadRequest:
+        pass
+
+    await callback.message.answer(WELCOME_TEXT, parse_mode="HTML", reply_markup=MAIN_KEYBOARD)
+    logger.info(f"User {user.id} verified channels and registered.")
+
+
+# ---------------------------------------------------------------------------
+# /help handler
+# ---------------------------------------------------------------------------
 
 @router.message(Command("help"))
 @router.message(F.text == "ℹ️ Help")
