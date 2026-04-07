@@ -27,15 +27,26 @@ logger = get_logger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    logger.info(f"Starting {settings.APP_NAME} v{settings.VERSION}")
+    logger.info(f"🚀 Starting {settings.APP_NAME} v{settings.VERSION}")
     await init_db()
     try:
         await get_redis()
     except Exception as e:
         logger.error(f"Redis connection failed at startup: {e}. Continuing — will retry on first use.")
+
+    bot_task = asyncio.create_task(main())
+    logger.info("🤖 Bot polling started alongside the API.")
+
     yield
+
+    bot_task.cancel()
+    try:
+        await bot_task
+    except asyncio.CancelledError:
+        pass
+
     await close_redis()
-    logger.info("Application shutdown complete.")
+    logger.info("✅ Application shutdown complete.")
 
 
 app = FastAPI(
@@ -66,10 +77,6 @@ app.include_router(profiles.router, prefix="/api/v1")
 app.include_router(anonymous_messages.router, prefix="/api/v1")
 app.include_router(admin.router, prefix="/api/v1")
 app.include_router(leaderboard.router, prefix="/api/v1")
-
-@app.on_event("startup")
-async def startup():
-    asyncio.create_task(main())
 
 @app.get("/health")
 async def health_check():
