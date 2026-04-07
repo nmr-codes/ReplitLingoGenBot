@@ -17,6 +17,7 @@ from backend.app.api.routers import (
     anonymous_messages,
     admin,
     leaderboard,
+    channels,
 )
 
 from backend.bot.bot import main
@@ -77,6 +78,7 @@ app.include_router(profiles.router, prefix="/api/v1")
 app.include_router(anonymous_messages.router, prefix="/api/v1")
 app.include_router(admin.router, prefix="/api/v1")
 app.include_router(leaderboard.router, prefix="/api/v1")
+app.include_router(channels.router, prefix="/api/v1")
 
 @app.get("/health")
 async def health_check():
