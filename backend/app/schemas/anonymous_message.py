@@ -43,7 +43,7 @@ class AnonymousMessageReply(BaseModel):
         if not v:
             raise ValueError("Reply cannot be empty")
         if len(v) > 500:
-            raise ValueError("Reply is too long (max 500 characters)")
+            raise ValueError("Reply must be 500 characters or less")
         return v
 
 

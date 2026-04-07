@@ -287,10 +287,10 @@ async def cb_admin_audit(callback: CallbackQuery) -> None:
         for log in data[:10]:
             action = log.get("action", "")
             target = log.get("target_id", "")
-            admin_uid = log.get("admin_telegram_id", "")
+            admin_id = log.get("admin_telegram_id", "")
             created_raw = log.get("created_at", "")
             created = str(created_raw)[:10] if created_raw else "unknown"
-            lines.append(f"🔹 <b>{action}</b> → {target} by {admin_uid} ({created})")
+            lines.append(f"🔹 <b>{action}</b> → {target} by {admin_id} ({created})")
         text = "\n".join(lines)
 
     try:
@@ -370,9 +370,8 @@ async def admin_add_channel_input(message: Message, bot: Bot, state: FSMContext)
         return
 
     try:
-        identifier = arg if arg.startswith("@") or arg.lstrip("-").isdigit() == False else arg
         if not arg.lstrip("-").isdigit():
-            identifier = arg if arg.startswith("@") else f"@{arg}"
+            identifier: str | int = arg if arg.startswith("@") else f"@{arg}"
         else:
             identifier = int(arg)
         chat = await bot.get_chat(identifier)
