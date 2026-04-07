@@ -26,9 +26,25 @@ class AnonymousMessageRead(BaseModel):
     is_flagged: bool
     helpful_votes: int
     unhelpful_votes: int
+    reply_content: str | None = None
+    replied_at: datetime | None = None
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class AnonymousMessageReply(BaseModel):
+    reply_content: str
+
+    @field_validator("reply_content")
+    @classmethod
+    def validate_reply(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError("Reply cannot be empty")
+        if len(v) > 500:
+            raise ValueError("Reply must be 500 characters or less")
+        return v
 
 
 class MessageVote(BaseModel):

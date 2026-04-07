@@ -1,5 +1,7 @@
+from datetime import datetime, timezone
+
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, func
 
 from backend.app.models.anonymous_message import AnonymousMessage
 from backend.app.models.moderation import ModerationFlag
@@ -51,7 +53,11 @@ async def send_anonymous_message(
 
 
 async def get_messages_for_user(
-    db: AsyncSession, telegram_id: int, unread_only: bool = False
+    db: AsyncSession,
+    telegram_id: int,
+    unread_only: bool = False,
+    limit: int = 20,
+    offset: int = 0,
 ) -> list[AnonymousMessage]:
     query = select(AnonymousMessage).where(
         AnonymousMessage.recipient_telegram_id == telegram_id,
@@ -59,9 +65,20 @@ async def get_messages_for_user(
     )
     if unread_only:
         query = query.where(AnonymousMessage.is_read.is_(False))
-    query = query.order_by(AnonymousMessage.created_at.desc())
+    query = query.order_by(AnonymousMessage.created_at.desc()).limit(limit).offset(offset)
     result = await db.execute(query)
     return list(result.scalars().all())
+
+
+async def count_unread_messages(db: AsyncSession, telegram_id: int) -> int:
+    result = await db.execute(
+        select(func.count(AnonymousMessage.id)).where(
+            AnonymousMessage.recipient_telegram_id == telegram_id,
+            AnonymousMessage.is_read.is_(False),
+            AnonymousMessage.is_flagged.is_(False),
+        )
+    )
+    return result.scalar_one() or 0
 
 
 async def mark_message_read(db: AsyncSession, message_id: int, telegram_id: int) -> bool:
@@ -77,6 +94,42 @@ async def mark_message_read(db: AsyncSession, message_id: int, telegram_id: int)
     msg.is_read = True
     await db.flush()
     return True
+
+
+async def mark_all_read(db: AsyncSession, telegram_id: int) -> int:
+    result = await db.execute(
+        select(AnonymousMessage).where(
+            AnonymousMessage.recipient_telegram_id == telegram_id,
+            AnonymousMessage.is_read.is_(False),
+        )
+    )
+    msgs = list(result.scalars().all())
+    for msg in msgs:
+        msg.is_read = True
+    await db.flush()
+    return len(msgs)
+
+
+async def reply_to_message(
+    db: AsyncSession,
+    message_id: int,
+    telegram_id: int,
+    reply_content: str,
+) -> AnonymousMessage | None:
+    result = await db.execute(
+        select(AnonymousMessage).where(
+            AnonymousMessage.id == message_id,
+            AnonymousMessage.recipient_telegram_id == telegram_id,
+        )
+    )
+    msg = result.scalar_one_or_none()
+    if not msg:
+        return None
+    msg.reply_content = reply_content
+    msg.replied_at = datetime.now(timezone.utc)
+    msg.is_read = True
+    await db.flush()
+    return msg
 
 
 async def vote_message(
