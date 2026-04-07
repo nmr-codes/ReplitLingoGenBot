@@ -58,7 +58,10 @@ async def get_db():
 
 
 async def init_db() -> None:
-    from backend.app.models import user, session, rating  # noqa: F401
+    from backend.app.models import (  # noqa: F401
+        user, session, rating,
+        profile, anonymous_message, achievement, user_statistics, moderation,
+    )
     engine = _get_engine()
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)

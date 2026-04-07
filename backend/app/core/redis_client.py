@@ -118,3 +118,39 @@ async def get_session_data(session_id: str) -> dict | None:
 async def clear_session_data(session_id: str) -> None:
     r = await get_redis()
     await r.delete(f"{SESSION_KEY_PREFIX}{session_id}")
+
+
+# ---------------------------------------------------------------------------
+# Anonymous messaging helpers
+# ---------------------------------------------------------------------------
+
+ANON_RATE_PREFIX = "anon_rate:"
+ANON_PENDING_PREFIX = "anon_pending:"
+
+
+async def check_anon_rate_limit(sender_id: int, recipient_id: int, max_per_hour: int = 5) -> bool:
+    """Return True if the sender is within rate limits, False if blocked."""
+    r = await get_redis()
+    key = f"{ANON_RATE_PREFIX}{sender_id}:{recipient_id}"
+    count = await r.incr(key)
+    if count == 1:
+        # First message this hour: set expiry
+        await r.expire(key, 3600)
+    return count <= max_per_hour
+
+
+async def set_pending_anon_message(sender_id: int, profile_token: str) -> None:
+    """Remember that sender_id is about to send an anon message to profile_token."""
+    r = await get_redis()
+    key = f"{ANON_PENDING_PREFIX}{sender_id}"
+    await r.set(key, profile_token, ex=300)  # 5-minute window
+
+
+async def get_pending_anon_message(sender_id: int) -> str | None:
+    r = await get_redis()
+    return await r.get(f"{ANON_PENDING_PREFIX}{sender_id}")
+
+
+async def clear_pending_anon_message(sender_id: int) -> None:
+    r = await get_redis()
+    await r.delete(f"{ANON_PENDING_PREFIX}{sender_id}")
