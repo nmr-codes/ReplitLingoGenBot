@@ -30,27 +30,3 @@ services:
         value: "15"
       - key: DEBUG
         value: "false"
-
-  - type: worker
-    name: lingogenbot-bot
-    runtime: docker
-    dockerfilePath: ./Dockerfile.bot
-    plan: free
-    envVars:
-      - key: BOT_TOKEN
-        sync: false
-      - key: MONITOR_CHANNEL_ID
-        value: ""
-      - key: REDIS_URL
-        sync: false
-      - key: BACKEND_URL
-        fromService:
-          name: lingogenbot-api
-          type: web
-          property: host
-      - key: MATCH_TIMEOUT_SECONDS
-        value: "120"
-      - key: SESSION_DURATION_SECONDS
-        value: "300"
-      - key: SEARCH_UPDATE_INTERVAL
-        value: "15"
